@@ -1,0 +1,551 @@
+ <!DOCTYPE html>
+<html>
+<head>
+  <title>Clipboard Guard History</title>
+  <link href="https://cdnjs.cloudflare.com/ajax/libs/lucide/0.263.1/lucide.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --primary-color: #2c3e50;
+      --secondary-color: #3498db;
+      --background-color: #ffffff;
+      --surface-color: #f8f9fa;
+      --text-color: #333333;
+      --text-muted: #0a0b0b;
+      --border-color: #ecf0f1;
+      --shadow: 0 3px 10px rgba(0,0,0,0.08);
+    }
+
+    [data-theme="dark"] {
+      --background-color: #1a1a1a;
+      --surface-color: #2d2d2d;
+      --text-color: #ffffff;
+      --text-muted: #a0a0a0;
+      --border-color: #404040;
+      --shadow: 0 3px 10px rgba(0,0,0,0.3);
+    }
+
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      font-family: 'Segoe UI', Arial, sans-serif;
+      line-height: 1.6;
+      padding: 20px;
+      max-width: 1200px;
+      margin: 0 auto;
+      color: var(--text-color);
+      background-color: var(--background-color);
+      transition: background-color 0.3s ease, color 0.3s ease;
+    }
+
+    .header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 30px;
+      flex-wrap: wrap;
+      gap: 15px;
+    }
+
+    h1 {
+      color: var(--primary-color);
+      border-bottom: 2px solid var(--border-color);
+      padding-bottom: 10px;
+      margin: 0;
+      flex-grow: 1;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+    }
+
+    .controls {
+      display: flex;
+      gap: 10px;
+      align-items: center;
+      flex-wrap: wrap;
+    }
+
+    .btn {
+      padding: 8px 16px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 14px;
+      transition: all 0.3s ease;
+      text-decoration: none;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .btn-primary {
+      background-color: var(--secondary-color);
+      color: white;
+    }
+
+    .btn-secondary {
+      background-color: var(--surface-color);
+      color: var(--text-color);
+      border: 1px solid var(--border-color);
+    }
+
+    .btn:hover {
+      opacity: 0.9;
+      transform: translateY(-1px);
+    }
+
+    .icon {
+      width: 16px;
+      height: 16px;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 2;
+    }
+
+    .icon-lg {
+      width: 20px;
+      height: 20px;
+    }
+
+    .stats-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+      margin-bottom: 30px;
+    }
+
+    .stat-card {
+      background: var(--surface-color);
+      padding: 20px;
+      border-radius: 8px;
+      box-shadow: var(--shadow);
+      text-align: center;
+      border: 1px solid var(--border-color);
+    }
+
+    .stat-number {
+      font-size: 2em;
+      font-weight: bold;
+      color: var(--secondary-color);
+    }
+
+    .stat-label {
+      color: var(--text-muted);
+      margin-top: 5px;
+    }
+
+    .filters {
+      background: var(--surface-color);
+      padding: 20px;
+      border-radius: 8px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+      border: 1px solid var(--border-color);
+    }
+
+    .filter-row {
+      display: flex;
+      gap: 15px;
+      align-items: center;
+      flex-wrap: wrap;
+      margin-bottom: 15px;
+    }
+
+    .filter-row:last-child {
+      margin-bottom: 0;
+    }
+
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+      min-width: 150px;
+    }
+
+    .form-group label {
+      font-size: 12px;
+      color: var(--text-muted);
+      font-weight: 600;
+    }
+
+    .form-control {
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      border-radius: 4px;
+      background: var(--background-color);
+      color: var(--text-color);
+      font-size: 14px;
+    }
+
+    .form-control:focus {
+      outline: none;
+      border-color: var(--secondary-color);
+      box-shadow: 0 0 0 2px rgba(52, 152, 219, 0.2);
+    }
+
+    .detection {
+      border-radius: 8px;
+      padding: 20px;
+      margin-bottom: 20px;
+      box-shadow: var(--shadow);
+      position: relative;
+      background: var(--surface-color);
+      border: 1px solid var(--border-color);
+      transition: all 0.3s ease;
+    }
+    .detection-screenshot{
+      max-width: max-content;
+      max-height: fit-content;
+      display: flex;
+      align-items: center;
+      text-align: center;
+    }
+
+    .detection:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+    }
+
+    .detection-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      margin-bottom: 10px;
+      flex-wrap: wrap;
+      gap: 10px;
+    }
+
+    .detection-type {
+      font-weight: 600;
+      font-size: 1.1em;
+      color: var(--primary-color);
+    }
+
+    .detection-time {
+      color: var(--text-muted);
+      font-size: 0.9em;
+    }
+
+    .detection-content {
+      background: var(--background-color);
+      padding: 15px;
+      border-radius: 6px;
+      margin: 12px 0;
+      font-family: 'Consolas', monospace;
+      white-space: pre-wrap;
+      border: 1px solid var(--border-color);
+      overflow-x: auto;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    .detection-source {
+      font-size: 0.9em;
+      color: var(--text-muted);
+      font-style: italic;
+      word-break: break-all;
+    }
+
+    a{
+      text-decoration: none;
+    }
+    .src{
+      text-decoration: none;
+    }
+    .dest{
+            text-decoration: none;
+
+    }
+
+       .detection-urls {
+      font-size: 0.9em;
+      display: flex;
+      gap: 10px;
+      color: var(--text-muted);
+      font-style: italic;
+      word-break: break-all;
+    }
+
+    .empty-state {
+      text-align: center;
+      padding: 60px 20px;
+      color: var(--text-muted);
+      background: var(--surface-color);
+      border-radius: 8px;
+      border: 1px solid var(--border-color);
+    }
+
+    .empty-state .icon {
+      width: 64px;
+      height: 64px;
+      margin-bottom: 20px;
+      opacity: 0.5;
+    }
+
+    .pagination {
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      gap: 10px;
+      margin-top: 30px;
+    }
+
+    .pagination button {
+      padding: 8px 12px;
+      border: 1px solid var(--border-color);
+      background: var(--background-color);
+      color: var(--text-color);
+      border-radius: 4px;
+      cursor: pointer;
+    }
+
+    .pagination button:hover:not(:disabled) {
+      background: var(--surface-color);
+    }
+
+    .pagination button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .pagination .active {
+      background: var(--secondary-color);
+      color: white;
+      border-color: var(--secondary-color);
+    }
+
+    .theme-toggle {
+      position: relative;
+      width: 50px;
+      height: 25px;
+      background: var(--border-color);
+      border-radius: 25px;
+      cursor: pointer;
+      transition: background 0.3s ease;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 4px;
+    }
+
+    .theme-toggle .icon {
+      width: 14px;
+      height: 14px;
+      opacity: 0.6;
+    }
+
+    .theme-toggle::after {
+      content: '';
+      position: absolute;
+      width: 21px;
+      height: 21px;
+      background: white;
+      border-radius: 50%;
+      top: 2px;
+      left: 2px;
+      transition: transform 0.3s ease;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.3);
+    }
+
+    [data-theme="dark"] .theme-toggle {
+      background: var(--secondary-color);
+    }
+
+    [data-theme="dark"] .theme-toggle::after {
+      transform: translateX(25px);
+    }
+
+    .modal {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      background: rgba(0,0,0,0.5);
+      display: none;
+      justify-content: center;
+      align-items: center;
+      z-index: 1000;
+    }
+
+    .modal-content {
+      background: var(--background-color);
+      padding: 30px;
+      border-radius: 8px;
+      max-width: 400px;
+      width: 90%;
+      text-align: center;
+      border: 1px solid var(--border-color);
+    }
+
+    .modal-content h3 {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 15px;
+    }
+
+    .modal-buttons {
+      display: flex;
+      gap: 10px;
+      justify-content: center;
+      margin-top: 20px;
+    }
+
+    @media (max-width: 768px) {
+      .header {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .filter-row {
+        flex-direction: column;
+        align-items: stretch;
+      }
+
+      .form-group {
+        min-width: unset;
+      }
+
+      .detection-header {
+        flex-direction: column;
+      }
+
+      .stats-grid {
+        grid-template-columns: 1fr 1fr;
+      }
+    }
+  </style>
+</head>
+<body>
+  <div class="header">
+    <h1>
+      <svg class="icon icon-lg" viewBox="0 0 24 24">
+        <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+      </svg>
+      Clipboard Guard Detection History
+    </h1>
+    <div class="controls">
+      <div class="theme-toggle" id="themeToggle" title="Toggle Dark Mode">
+        <svg class="icon" viewBox="0 0 24 24">
+          <circle cx="12" cy="12" r="5"/>
+          <line x1="12" y1="1" x2="12" y2="3"/>
+          <line x1="12" y1="21" x2="12" y2="23"/>
+          <line x1="4.22" y1="4.22" x2="5.64" y2="5.64"/>
+          <line x1="18.36" y1="18.36" x2="19.78" y2="19.78"/>
+          <line x1="1" y1="12" x2="3" y2="12"/>
+          <line x1="21" y1="12" x2="23" y2="12"/>
+          <line x1="4.22" y1="19.78" x2="5.64" y2="18.36"/>
+          <line x1="18.36" y1="5.64" x2="19.78" y2="4.22"/>
+        </svg>
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/>
+        </svg>
+      </div>
+      <button class="btn btn-secondary" id="exportJsonBtn">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+          <polyline points="7,10 12,15 17,10"/>
+          <line x1="12" y1="15" x2="12" y2="3"/>
+        </svg>
+        Export JSON
+      </button>
+      <button class="btn btn-secondary" id="exportCsvBtn">
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/>
+          <polyline points="14,2 14,8 20,8"/>
+          <line x1="16" y1="13" x2="8" y2="13"/>
+          <line x1="16" y1="17" x2="8" y2="17"/>
+          <polyline points="10,9 9,9 8,9"/>
+        </svg>
+        Export CSV
+      </button>
+      <button class="bt n btn-danger" id="clearHistoryBtn">
+        <svg class="icon" viewBox="0 0 24 24">
+          <polyline points="3,6 5,6 21,6"/>
+          <path d="m19,6v14a2,2 0 0 1-2,2H7a2,2 0 0 1-2-2V6m3,0V4a2,2 0 0 1 2-2h4a2,2 0 0 1 2,2v2"/>
+          <line x1="10" y1="11" x2="10" y2="17"/>
+          <line x1="14" y1="11" x2="14" y2="17"/>
+        </svg>
+        Clear History
+      </button>
+    </div>
+  </div>
+
+  <div class="stats-grid" id="statsGrid">
+    <div class="stat-card">
+      <div class="stat-number" id="totalDetections">0</div>
+      <div class="stat-label">Total Detections</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="todayDetections">0</div>
+      <div class="stat-label">Today's Detections</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-number" id="uniqueSources">0</div>
+      <div class="stat-label">Unique Sources</div>
+    </div>
+  </div>
+
+  <div class="filters">
+    <div class="filter-row">
+      <div class="form-group">
+        <label>Search</label>
+        <input type="text" class="form-control" id="searchInput" placeholder="Search detections...">
+      </div>
+      <div class="form-group">
+        <label>From Date</label>
+        <input type="date" class="form-control" id="fromDate">
+      </div>
+      <div class="form-group">
+        <label>To Date</label>
+        <input type="date" class="form-control" id="toDate">
+      </div>
+      <div class="form-group">
+        <label>Detection Type</label>
+        <select class="form-control" id="typeFilter">
+          <option value="">All Types</option>
+        </select>
+      </div>
+    </div>
+    <div class="filter-row">
+      <div class="form-group">
+        <label>Items per page</label>
+        <select class="form-control" id="itemsPerPage">
+          <option value="10">10</option>
+          <option value="25" selected>25</option>
+          <option value="50">50</option>
+          <option value="100">100</option>
+        </select>
+      </div>
+    </div>
+  </div>
+
+  <div id="history-container"></div>
+
+  <div class="pagination" id="pagination"></div>
+
+  <div class="modal" id="clearModal">
+    <div class="modal-content">
+      <h3>
+        <svg class="icon" viewBox="0 0 24 24">
+          <path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/>
+          <line x1="12" y1="9" x2="12" y2="13"/>
+          <line x1="12" y1="17" x2="12.01" y2="17"/>
+        </svg>
+        Clear History
+      </h3>
+      <p>Are you sure you want to clear all detection history? This action cannot be undone.</p>
+      <div class="modal-buttons">
+        <button class="btn btn-secondary" id="cancelClearBtn">Cancel</button>
+        <button class="btn btn-danger" id="confirmClearBtn">Clear All</button>
+      </div>
+    </div>
+  </div>
+
+  <script src="history.js"></script>
+</body>
+</html>
+
