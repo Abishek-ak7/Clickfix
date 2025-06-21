@@ -21,10 +21,18 @@ class ClipboardHistory {
     document.getElementById('searchInput').addEventListener('input',
       this.debounce(() => this.applyFilters(), 300));
 
+
+
     // Date filters
     document.getElementById('fromDate').addEventListener('change', () => this.applyFilters());
     document.getElementById('toDate').addEventListener('change', () => this.applyFilters());
 
+    document.addEventListener('click',(event)=>{
+      const detectionElement = event.target.closest('.detection');
+      if(detectionElement){
+        this.showDetectionDetailsFromElement(detectionElement);
+      }
+    });
     // Type filter
     document.getElementById('typeFilter').addEventListener('change', () => this.applyFilters());
 
@@ -83,6 +91,16 @@ class ClipboardHistory {
     const savedTheme = localStorage.getItem('clipboard-guard-theme') || 'light';
     document.documentElement.setAttribute('data-theme', savedTheme);
   }
+  formatTimeTo12Hour(timestamp) {
+  const date = new Date(timestamp);
+  let hours = date.getHours();
+  const minutes = date.getMinutes();
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12 || 12; // Convert 0 to 12 for 12 AM
+  const paddedMinutes = minutes.toString().padStart(2, '0');
+  return `${hours}:${paddedMinutes} ${ampm}`;
+}
+
 
   toggleTheme() {
     const currentTheme = document.documentElement.getAttribute('data-theme');
@@ -243,26 +261,119 @@ class ClipboardHistory {
     this.renderPagination();
   }
 
+  
+  
+
   // Enhanced renderDetection method with full chain array support
   renderDetection(detection) {
-    return `
-      <div class="detection" data-detection-id="${detection.timestamp}">
-        <div class="detection-header">
-          <span class="detection-type">${this.escapeHtml(detection.type)}</span>
-          <span class="detection-time">${this.formatDateTime(detection.timestamp)}</span>
-        </div>
-        ${detection.screenshot ? `
-          <div class="detection-screenshot">
-            <img src="${detection.screenshot}" alt="Screenshot" style="max-width: 100%; max-height: 200px; border: 1px solid #ccc; margin-top: 5px;" />
-          </div>
-        ` : ''}
-        <div class="detection-source">${this.escapeHtml(detection.source) || 'No source'}</div>
+return `
+<div class="detection" data-detection='${JSON.stringify(detection).replace(/'/g, "&apos;")}'">
+  <div class="detection-header">
+    <span class="detection-type detection-item">${this.escapeHtml(detection.type)}</span>
+    <span class="detection-time detection-item">${this.formatDateTime(detection.timestamp)}</span>
+  </div>
+  <div class="detection-item detection-screenshot">
+    ${detection.screenshot ? `<img src="${detection.screenshot}" alt="Screenshot" />` : 'No screenshot'}
+  </div>
+  <div class="detection-item detection-source">
+    ${this.escapeHtml(detection.source) || 'No source'}
+  </div>
+  <div class="detection-item">
+    ${this.renderHalfChain(detection.fullChain)}
+  </div>
+  <div class="detection-item detection-content">
+    ${this.escapeHtml(detection.content) || 'No content'}
+  </div>
+</div>
+`;
+  }
 
-        ${this.renderFullChain(detection.fullChain)}
-        <div class="detection-content">${this.escapeHtml(detection.content) || 'No content'}</div>
+
+showDetectionDetails(detection) {
+  const modal = document.getElementById('detectionModal');
+  const content = document.getElementById('detectionDetails');
+  
+  // Format the full chain of URLs
+  let fullChainHTML = '';
+  if (detection.fullChain && detection.fullChain.length > 0) {
+    const chainUrls = Array.isArray(detection.fullChain) ? detection.fullChain : [detection.fullChain];
+    fullChainHTML = `
+      <div class="full-chain-section">
+        <p><strong>Full URL Chain:</strong></p>
+        <div class="chain-container">
+          ${chainUrls.map((url, index) => `
+            <div class="chain-step">
+              <span class="chain-number">${index + 1}</span>
+              <a href="${url}" target="_blank" rel="noopener noreferrer" title="${this.escapeHtml(url)}">
+                ${this.truncateUrl(url, 60)}
+              </a>
+            </div>
+            ${index < chainUrls.length - 1 ? '<div class="chain-arrow">&#8595;</div>' : ''}
+          `).join('')}
+        </div>
       </div>
     `;
   }
+
+  content.innerHTML = `
+    <h2>${this.escapeHtml(detection.type)}</h2>
+    <p><strong>Time:</strong> ${this.formatDateTime(detection.timestamp)}</p>
+    <p><strong>Source:</strong> ${this.escapeHtml(detection.source || 'N/A')}</p>
+    <div class="content-section">
+      <p><strong>Content:</strong></p>
+      <pre>${this.escapeHtml(detection.content || 'No content')}</pre>
+    </div>
+    ${fullChainHTML}
+    ${detection.screenshot ? `
+    <div class="screenshot-section">
+      <p><strong>Screenshot:</strong></p>
+      <img src="${detection.screenshot}" alt="Screenshot" class="modal-screenshot">
+    </div>
+    ` : ''}
+  `;
+
+  modal.style.display = 'block';
+
+  // Close modal when clicking the X button
+  document.getElementById('closeModalBtn').onclick = () => {
+    modal.style.display = 'none';
+  };
+
+  // Close modal when clicking outside
+  window.onclick = (event) => {
+    if (event.target === modal) {
+      modal.style.display = 'none';
+    }
+  };
+}
+
+showDetectionDetailsFromElement(element) {
+  const raw = element.getAttribute('data-detection');
+  if (!raw) return;
+
+  try {
+    const detection = JSON.parse(raw.replace(/&apos;/g, "'"));
+    this.showDetectionDetails(detection);
+  } catch (e) {
+    console.error("Failed to parse detection data:", e);
+  }
+}
+
+  renderHalfChain(fullChain) {
+  if (!fullChain) return '';
+
+  const chainUrls = Array.isArray(fullChain) ? fullChain : [fullChain];
+  if (chainUrls.length === 0) return '';
+
+  const firstUrl = chainUrls[0];
+  const lastUrl = chainUrls[chainUrls.length - 1];
+
+  return `
+    <div class="detection-urls">
+      <div> <a href="${firstUrl}" target="_blank" rel="noopener noreferrer">${this.truncateUrl(firstUrl, 60)}</a></div>
+    </div>
+  `;
+}
 
   // New method to render full chain array
   renderFullChain(fullChain) {
@@ -453,6 +564,7 @@ class ClipboardHistory {
       });
     }
   }
+  
 
   escapeHtml(unsafe) {
     if (!unsafe) return '';

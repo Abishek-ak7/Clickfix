@@ -1,4 +1,4 @@
- <!DOCTYPE html>
+<!DOCTYPE html>
 <html>
 <head>
   <title>Clipboard Guard History</title>
@@ -10,33 +10,37 @@
       --background-color: #ffffff;
       --surface-color: #f8f9fa;
       --text-color: #333333;
-      --text-muted: #0a0b0b;
-      --border-color: #ecf0f1;
+      --text-muted: #6c757d;
+      --border-color: #e9ecef;
       --shadow: 0 3px 10px rgba(0,0,0,0.08);
+      --danger-color: #e74c3c;
     }
 
     [data-theme="dark"] {
-      --background-color: #1a1a1a;
-      --surface-color: #2d2d2d;
-      --text-color: #ffffff;
-      --text-muted: #a0a0a0;
-      --border-color: #404040;
+      --primary-color: #ecf0f1;
+      --secondary-color: #3498db;
+      --background-color: #121212;
+      --surface-color: #1e1e1e;
+      --text-color: #f8f9fa;
+      --text-muted: #adb5bd;
+      --border-color: #2d2d2d;
       --shadow: 0 3px 10px rgba(0,0,0,0.3);
+      --danger-color: #e74c3c;
     }
 
     * {
       box-sizing: border-box;
+      transition: background-color 0.3s ease, color 0.3s ease, border-color 0.3s ease;
     }
 
     body {
       font-family: 'Segoe UI', Arial, sans-serif;
       line-height: 1.6;
       padding: 20px;
-      max-width: 1200px;
+      
       margin: 0 auto;
       color: var(--text-color);
       background-color: var(--background-color);
-      transition: background-color 0.3s ease, color 0.3s ease;
     }
 
     .header {
@@ -88,6 +92,11 @@
       background-color: var(--surface-color);
       color: var(--text-color);
       border: 1px solid var(--border-color);
+    }
+
+    .btn-danger {
+      background-color: var(--danger-color);
+      color: white;
     }
 
     .btn:hover {
@@ -185,21 +194,33 @@
     }
 
     .detection {
+      display: grid;
+      cursor: pointer;
+      grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+      gap: 10px;
+      padding:5px;
       border-radius: 8px;
-      padding: 20px;
-      margin-bottom: 20px;
+      text-align: center;
+      margin-bottom: 10px;
       box-shadow: var(--shadow);
-      position: relative;
       background: var(--surface-color);
       border: 1px solid var(--border-color);
       transition: all 0.3s ease;
     }
-    .detection-screenshot{
-      max-width: max-content;
-      max-height: fit-content;
+
+    .detection-screenshot {
       display: flex;
       align-items: center;
+      justify-content: center;
       text-align: center;
+      overflow: hidden;
+    }
+
+    .detection-screenshot img {
+      max-width: 100%;
+      max-height: 60px;
+      object-fit: cover;
+      border-radius: 4px;
     }
 
     .detection:hover {
@@ -209,10 +230,11 @@
 
     .detection-header {
       display: flex;
-      justify-content: space-between;
-      align-items: flex-start;
+      justify-content:center;
+      align-items: center;
+      font-size: medium;
+      font-weight: 400;
       margin-bottom: 10px;
-      flex-wrap: wrap;
       gap: 10px;
     }
 
@@ -235,30 +257,41 @@
       font-family: 'Consolas', monospace;
       white-space: pre-wrap;
       border: 1px solid var(--border-color);
-      overflow-x: auto;
-      max-height: 200px;
-      overflow-y: auto;
+      overflow-x: hidden;
+      max-height: 80px;
+      overflow-y: hidden;
     }
 
     .detection-source {
-      font-size: 0.9em;
+      font-size: 1.2em;
       color: var(--text-muted);
+      text-align: center;
+      align-items: center;
       font-style: italic;
       word-break: break-all;
     }
 
-    a{
+    a {
       text-decoration: none;
+      color: var(--secondary-color);
     }
     .src{
       text-decoration: none;
     }
     .dest{
-            text-decoration: none;
-
+      text-decoration: none;
     }
 
-       .detection-urls {
+    .detection-item {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      word-break: break-word;
+    }
+    
+    .detection-urls {
       font-size: 0.9em;
       display: flex;
       gap: 10px;
@@ -274,6 +307,108 @@
       background: var(--surface-color);
       border-radius: 8px;
       border: 1px solid var(--border-color);
+    }
+    
+    .detection:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 20px rgba(0,0,0,0.15);
+      background-color: var(--border-color);
+    }
+    
+    .detection-modal {
+      display: none;
+      position: fixed;
+      z-index: 9999;
+      left: 0;
+      top: 0;
+      width: 100%;
+      height: 100%;
+      background-color: rgba(0,0,0,0.6);
+      overflow: auto;
+    }
+
+    .detection-modal-content {
+      background-color: var(--background-color);
+      margin: 5% auto;
+      padding: 20px;
+      border: 1px solid var(--border-color);
+      border-radius: 8px;
+      width: 90%;
+      max-width: 800px;
+      max-height: 80vh;
+      overflow-y: auto;
+      box-shadow: var(--shadow);
+      color: var(--text-color);
+      position: relative;
+    }
+
+    .close-modal {
+      color: var(--text-muted);
+      position: absolute;
+      top: 10px;
+      right: 20px;
+      font-size: 28px;
+      font-weight: bold;
+      cursor: pointer;
+    }
+
+    .close-modal:hover {
+      color: var(--secondary-color);
+    }
+
+    #detectionDetails {
+      padding: 10px;
+    }
+
+    #detectionDetails h2 {
+      margin-top: 0;
+      color: var(--primary-color);
+    }
+
+    #detectionDetails pre {
+      white-space: pre-wrap;
+      word-wrap: break-word;
+      background: var(--surface-color);
+      padding: 10px;
+      border-radius: 4px;
+      max-height: 200px;
+      overflow-y: auto;
+    }
+
+    #detectionDetails img {
+      max-width: 100%;
+      height: auto;
+      display: block;
+      margin: 10px auto;
+      border-radius: 4px;
+      box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+    }
+
+    #detectionDetails p {
+      margin: 10px 0;
+      line-height: 1.5;
+    }
+
+    .content-section, .url-section, .screenshot-section {
+      margin-bottom: 20px;
+      padding-bottom: 20px;
+      border-bottom: 1px solid var(--border-color);
+    }
+
+    .url-section a {
+      color: var(--secondary-color);
+      text-decoration: none;
+      word-break: break-all;
+    }
+
+    .url-section a:hover {
+      text-decoration: underline;
+    }
+
+    .modal-screenshot {
+      max-height: 400px;
+      width: auto;
+      object-fit: contain;
     }
 
     .empty-state .icon {
@@ -393,6 +528,31 @@
       justify-content: center;
       margin-top: 20px;
     }
+    
+    .detection-table {
+      display: grid;
+      grid-template-columns: repeat(6, 1fr);
+      gap: 10px;
+      font-family: Arial, sans-serif;
+      margin-top: 20px;
+    }
+
+    .detection-row {
+      display: contents;
+    }
+
+    .detection-row.header > div {
+      font-weight: bold;
+      background-color: var(--surface-color);
+      padding: 8px;
+      border-bottom: 2px solid var(--border-color);
+    }
+
+    .detection-row > div {
+      padding: 8px;
+      border-bottom: 1px solid var(--border-color);
+      word-break: break-word;
+    }
 
     @media (max-width: 768px) {
       .header {
@@ -415,6 +575,16 @@
 
       .stats-grid {
         grid-template-columns: 1fr 1fr;
+      }
+      
+      .detection-modal-content {
+        width: 95%;
+        margin: 10% auto;
+        padding: 15px;
+      }
+      
+      .modal-screenshot {
+        max-height: 300px;
       }
     }
   </style>
@@ -462,7 +632,7 @@
         </svg>
         Export CSV
       </button>
-      <button class="bt n btn-danger" id="clearHistoryBtn">
+      <button class="btn btn-danger" id="clearHistoryBtn">
         <svg class="icon" viewBox="0 0 24 24">
           <polyline points="3,6 5,6 21,6"/>
           <path d="m19,6v14a2,2 0 0 1-2,2H7a2,2 0 0 1-2-2V6m3,0V4a2,2 0 0 1 2-2h4a2,2 0 0 1 2,2v2"/>
@@ -544,8 +714,13 @@
       </div>
     </div>
   </div>
-
-  <script src="history.js"></script>
+  
+  <div class="detection-modal" id="detectionModal">
+    <div class="detection-modal-content">
+      <span class="close-modal" id="closeModalBtn">&times;</span>
+      <div id="detectionDetails"></div>
+    </div>
+  </div>
+<script src="history.js"></script>
 </body>
 </html>
-
