@@ -73,6 +73,23 @@ const maliciousPatterns = [
 ];
 
 
+
+const heuristicWeights = {
+  "Powershell Command": 0.3,
+  "Silent Powershell Command": 0.4,
+  "Suspicious File": 0.3,
+  "Remote File execution(MSHTA)": 0.5,
+  "HardCode Clipboard Function": 0.2,
+  "Windows + R Command": 0.2,
+  "Script or shell Command": 0.3,
+  "Hexadecimal_Code": 0.4,
+  "Obfuscated Powershell Command": 0.6,
+  "IEX Found": 0.4,
+  "IWR Found": 0.4
+};
+
+
+
 //It is used to verify the Heuristic Evaluation of the IWR, IEX, Mhta 
 function isLikelySafeUsage(content) {
   const normalized = content.toLowerCase();
@@ -105,6 +122,8 @@ document.addEventListener("click", () => {
   chrome.runtime.sendMessage({ action: "readClipboard" });
 });
 
+let model_output = 0;
+
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.action === "readClipboard") {
     navigator.clipboard.readText().then(text => {
@@ -116,6 +135,12 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
   if(msg.type === 'model_result'){
     console.log("Received model output:",msg.decision);
+    const rece = msg.decision;
+    const confidence = parseFloat(rece.final_confidence);
+    model_output = confidence/100;
+    console.log("The output is:", model_output);
+
+    evaluateFinalAlert();
   }
 });
 
@@ -218,10 +243,10 @@ function handleDeobfuscationResult(original, result) {
 
   // Alert if needed
   if (canAlert(`deob-${hashString(original.content)}`)) {
-    showSecurityAlert(
-      `Deobfuscation result: ${result.analysis || 'Suspicious content found'}`,
-      original.url
-    );
+    // showSecurityAlert(
+    //   `Deobfuscation result: ${result.analysis || 'Suspicious content found'}`,
+    //   original.url
+    // );
   }
 }
 
@@ -436,7 +461,7 @@ function startScriptMonitoring() {
       };
       addToDetectionHistory(detection);
       if (canAlert('setTimeout')) {
-        showSecurityAlert('Suspicious setTimeout with clipboard operation', window.location.href);
+        // showSecurityAlert('Suspicious setTimeout with clipboard operation', window.location.href);
         
       }
     }
@@ -461,7 +486,7 @@ function startScriptMonitoring() {
       };
       addToDetectionHistory(detection);
       if (canAlert('setInterval')) {
-        showSecurityAlert('Suspicious setInterval with clipboard operation', window.location.href);
+        // showSecurityAlert('Suspicious setInterval with clipboard operation', window.location.href);
       }
     }
     return originalAPIs.setInterval.apply(this, arguments);
@@ -482,7 +507,7 @@ function startScriptMonitoring() {
         timestamp: new Date().toISOString()
       };
       addToDetectionHistory(detection);
-      showSecurityAlert('execCommand copy detected without user interaction', window.location.href);
+      // showSecurityAlert('execCommand copy detected without user interaction', window.location.href);
       clearClipboard();
     }
     return originalAPIs.execCommand.apply(this, arguments);
@@ -504,7 +529,7 @@ function startScriptMonitoring() {
           timestamp: new Date().toISOString()
         };
         addToDetectionHistory(detection);
-        showSecurityAlert('clipboard.writeText detected without user interaction', window.location.href);
+        // showSecurityAlert('clipboard.writeText detected without user interaction', window.location.href);
 return originalAPIs.writeText.call(navigator.clipboard, '[Blocked malicious clipboard content]');
       }
       
@@ -521,7 +546,7 @@ return originalAPIs.writeText.call(navigator.clipboard, '[Blocked malicious clip
           timestamp: new Date().toISOString()
         };
         addToDetectionHistory(detection);
-        showSecurityAlert(`Malicious content detected in clipboard operation: ${maliciousMatch.description}`, window.location.href);
+        // showSecurityAlert(`Malicious content detected in clipboard operation: ${maliciousMatch.description}`, window.location.href);
 return originalAPIs.writeText.call(navigator.clipboard, '[Blocked malicious clipboard content]');
       }
       return originalAPIs.writeText.apply(this, arguments);
@@ -553,8 +578,16 @@ function clearClipboard() {
   }
 }
 
+function evaluateFinalAlert() {
+  if (heuristicScore + model_output >= 0.5) {
+    console.log("The malicious content is found and alerts");
+    showSecurityAlert('Malicious Pattern Detected', window.location.href);
+  }
+}
 
 
+
+let heuristicScore = 0;
 
   //It is the main function which will be triggered whenever the content is extracted the function for the pattern matching.
 function checkScriptContent(content, source) {
@@ -596,6 +629,7 @@ function checkScriptContent(content, source) {
     const img = response?.imageUri || null;
 
     matchedPatterns.forEach(({ type, description, matches }) => {
+      heuristicScore+=heuristicWeights[type] || 0.1;
       matches.forEach(() => {
         const detection = {
           type: type || 'Malicious things Found',
@@ -610,7 +644,7 @@ function checkScriptContent(content, source) {
           timestamp: new Date().toISOString()
         };
         addToDetectionHistory(detection);
-        showSecurityAlert(`We found the ${type}`, source || window.location.href);
+        // showSecurityAlert(`We found the ${type}`, source || window.location.href);
 
         if (description.toLowerCase().includes('powershell')) {
           const psMatch = content.match(powershellCommandPattern);
@@ -630,7 +664,7 @@ function checkScriptContent(content, source) {
                 timestamp: new Date().toISOString()
               };
               addToDetectionHistory(decodedDetection);
-              showSecurityAlert(`⚠️ PowerShell command detected:\n${decoded}`, source || window.location.href);
+              // showSecurityAlert(`⚠️ PowerShell command detected:\n${decoded}`, source || window.location.href);
             } catch (e) {
               console.warn('Failed to decode PowerShell command:', e);
             }
@@ -677,4 +711,7 @@ function checkScriptContent(content, source) {
         .catch(() => {});
     }
   }
+
+
+
 })();
