@@ -1,5 +1,5 @@
 (function() {
-  const COOLDOWN_TIME = 60 * 1000; 
+  const COOLDOWN_TIME = 10 * 1000; // 10 seconds
   const PARTIAL_CONTENT_LENGTH = 500; 
   const alertTimestamps = new Map();
   const detectionHistory = [];
@@ -107,13 +107,15 @@ document.addEventListener("click", () => {
 
 chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if (msg.action === "readClipboard") {
-    console.log("Received readClipboard request from background");
     navigator.clipboard.readText().then(text => {
       console.log("Clipboard text:", text);
       monitorClipboard(text);
     }).catch(err => {
       console.error("Clipboard read failed", err);
     });
+  }
+  if(msg.type === 'model_result'){
+    console.log("Received model output:",msg.decision);
   }
 });
 
@@ -133,10 +135,11 @@ async function monitorClipboard( text) {
 
     // Normalize clipboard content
     const normalized = text.replace(/\s+/g, ' ').replace(/[\n\r\t]/g, ' ').trim();
-
-    // Check clipboard content using existing script detection logic
-    checkScriptContent(normalized, 'clipboard');
-    
+    const matched = maliciousPatterns.some(({ pattern }) => pattern.test(normalized));
+    if (matched) {
+      checkScriptContent(normalized, 'clipboard');
+      clearClipboard();
+}    
 }
 
 
@@ -472,6 +475,7 @@ function startScriptMonitoring() {
         source: 'Inline script',
         content: `Attempt to copy: ${value?.substring(0, 100) || 'unknown content'}`,
          src:sourceUrl,
+         screenshot:img,
     dest:destinationUrl,
        fullChain,
         url: window.location.href,
@@ -493,6 +497,7 @@ function startScriptMonitoring() {
           source: 'Inline script',
           content: `Attempt to copy: ${text?.substring(0, 100) || 'unknown content'}`,
           url: window.location.href,
+                  screenshot:img,
            src:sourceUrl,
     dest:destinationUrl,
        fullChain,
@@ -500,8 +505,7 @@ function startScriptMonitoring() {
         };
         addToDetectionHistory(detection);
         showSecurityAlert('clipboard.writeText detected without user interaction', window.location.href);
-        clearClipboard();
-        return Promise.reject('Blocked by security extension');
+return originalAPIs.writeText.call(navigator.clipboard, '[Blocked malicious clipboard content]');
       }
       
       const maliciousMatch = maliciousPatterns.find(({ pattern }) => pattern.test(text));
@@ -518,8 +522,7 @@ function startScriptMonitoring() {
         };
         addToDetectionHistory(detection);
         showSecurityAlert(`Malicious content detected in clipboard operation: ${maliciousMatch.description}`, window.location.href);
-        clearClipboard();
-        return Promise.reject('Blocked by security extension');
+return originalAPIs.writeText.call(navigator.clipboard, '[Blocked malicious clipboard content]');
       }
       return originalAPIs.writeText.apply(this, arguments);
     };
@@ -536,15 +539,22 @@ function startScriptMonitoring() {
   }
 
 //It wont work as of now which will clear the clipboard but due to the Browser policy it is blocked
-  function clearClipboard() {
-    try {
-      if (navigator.clipboard && originalAPIs.writeText) {
-        originalAPIs.writeText.call(navigator.clipboard, '')
-          .catch(() => {});
-      }
-      document.execCommand('copy', false, '');
-    } catch (e) {}
+function clearClipboard() {
+  try {
+    const safeText = '[Blocked malicious clipboard content]';
+
+    if (navigator.clipboard && originalAPIs.writeText) {
+      originalAPIs.writeText.call(navigator.clipboard, safeText)
+        .then(() => console.log('Clipboard overridden with safe content'))
+        .catch(err => console.warn('Clipboard override failed:', err));
+    }
+  } catch (e) {
+    console.error('Clipboard override error:', e);
   }
+}
+
+
+
 
   //It is the main function which will be triggered whenever the content is extracted the function for the pattern matching.
 function checkScriptContent(content, source) {
@@ -596,7 +606,7 @@ function checkScriptContent(content, source) {
           screenshot: img,
           src: sourceUrl,
           dest: destinationUrl,
-             fullChain,
+          fullChain,
           timestamp: new Date().toISOString()
         };
         addToDetectionHistory(detection);

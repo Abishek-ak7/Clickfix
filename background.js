@@ -96,9 +96,11 @@ const window = await chrome.windows.getCurrent({ populate: true });
       body: formData
     });
 
+
     const contentType = response.headers.get('content-type');
     if (contentType && contentType.includes('application/json')) {
       const result = await response.json();
+      console.log(result);
       chrome.notifications.create({
         type: 'basic',
         iconUrl: 'icons/icon128.png',
@@ -106,6 +108,10 @@ const window = await chrome.windows.getCurrent({ populate: true });
         message: `Backend says: ${result.message || 'Success'}`,
         priority: 1
       });
+        chrome.tabs.sendMessage(tab.id,{
+          type:'model_result',
+          decision:result
+        });
     } else {
       const text = await response.text();
       chrome.notifications.create({
