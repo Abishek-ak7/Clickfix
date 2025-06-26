@@ -51,21 +51,34 @@ chrome.webNavigation.onBeforeNavigate.addListener((details) => {
   }
 });
 
-// Track committed navigations (final URLs)
+
+
 chrome.webNavigation.onCommitted.addListener((details) => {
-  if (details.frameId === 0) {
-    console.log('Navigation committed:', details.url, 'Tab:', details.tabId);
-    
-    const chain = tabRedirectChains.get(details.tabId) || [];
+  if (details.frameId !== 0) return;
+
+  const { tabId, url, transitionType, transitionQualifiers } = details;
+
+  const isManual = transitionType === 'typed' || transitionQualifiers.includes('from_address_bar');
+  const isRedirect = transitionQualifiers.includes('client_redirect') || transitionQualifiers.includes('server_redirect');
+
+  if (isManual) {
+    // Start a new chain
+    tabRedirectChains.set(tabId, [url]);
+    console.log('New chain started due to manual navigation:', url);
+  } else {
+    // Continue existing chain or start if missing
+    const chain = tabRedirectChains.get(tabId) || [];
     const lastUrl = chain[chain.length - 1];
-    
-    if (lastUrl !== details.url) {
-      chain.push(details.url);
-      tabRedirectChains.set(details.tabId, chain);
-      console.log('Final chain for tab', details.tabId, ':', chain);
+
+    if (lastUrl !== url) {
+      chain.push(url);
+      tabRedirectChains.set(tabId, chain);
+      console.log('Chain updated with auto-redirect or link:', chain);
     }
   }
 });
+
+
 
 async function captureAndSendScreenshot(retryCount = 0) {
   try {

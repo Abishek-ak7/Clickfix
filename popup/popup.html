@@ -6,12 +6,30 @@
 </head>
 <body>
     <div class="container">
+        <img src="../icons/icon48.png" alt="Extension-Icon" width="30" height="30"/>
         <h1>Clipboard Guard</h1>
         <p>Protecting you from automatic clipboard operations</p>
-     
+        
+        <div class="stats-container">
+            <div class="stat-item">
+                <span class="stat-number" id="todayCount">0</span>
+                <span class="stat-label">Detected Today</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="uniqueSources">0</span>
+                <span class="stat-label">Unique Sources</span>
+            </div>
+            <div class="stat-item">
+                <span class="stat-number" id="totalBlocked">0</span>
+                <span class="stat-label">Total Detections</span>
+            </div>
+        </div>
 
+        <div id="alerts"></div>
+        
+        <button id="viewHistory">View Full History</button>
     </div>
-     <button id="send">Send to Native App</button>
+
     <script src="popup.js"></script>
 </body>
 </html>

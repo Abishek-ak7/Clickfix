@@ -5,7 +5,6 @@ class ClipboardHistory {
     this.itemsPerPage = 25;
     this.filteredHistory = [];
     this.fullHistory = [];
-   
     this.init();
   }
 
@@ -21,6 +20,14 @@ class ClipboardHistory {
     document.getElementById('searchInput').addEventListener('input',
       this.debounce(() => this.applyFilters(), 300));
 
+      document.getElementById('history-container').addEventListener('click', (event) => {
+  if (event.target.classList.contains('view-btn')) {
+    const row = event.target.closest('.detection-row');
+    if (row) {
+      this.showDetectionDetailsFromElement(row);
+    }
+  }
+});
 
 
     // Date filters
@@ -262,31 +269,28 @@ class ClipboardHistory {
   }
 
   
-  
+renderDetection(detection) {
+  return `
+    <div class="detection-row" data-detection='${JSON.stringify(detection).replace(/'/g, "&apos;")}'>
+      <div class="detection-item">${this.escapeHtml(detection.type)}</div>
+      <div class="detection-item">${this.formatDateTime(detection.timestamp)}</div>
+      <div class="detection-item detection-screenshot">
+        ${detection.screenshot ? `<img src="${detection.screenshot}" alt="Screenshot" />` : 'No screenshot'}
+      </div>
+      <div class="detection-item detection-source">
+        ${this.renderHalfChain(detection.fullChain) || 'No source'}
+      </div>
+      <div class="detection-item detection-content">
+        ${this.escapeHtml(detection.content) || 'No content'}
+      </div>
+      <div class="detection-item">
+        <button class="btn btn-secondary view-btn">View</button>
+      </div>
+    </div>
+  `;
+}
 
-  // Enhanced renderDetection method with full chain array support
-  renderDetection(detection) {
-return `
-<div class="detection" data-detection='${JSON.stringify(detection).replace(/'/g, "&apos;")}'">
-  <div class="detection-header">
-    <span class="detection-type detection-item">${this.escapeHtml(detection.type)}</span>
-    <span class="detection-time detection-item">${this.formatDateTime(detection.timestamp)}</span>
-  </div>
-  <div class="detection-item detection-screenshot">
-    ${detection.screenshot ? `<img src="${detection.screenshot}" alt="Screenshot" />` : 'No screenshot'}
-  </div>
-  <div class="detection-item detection-source">
-    ${this.escapeHtml(detection.source) || 'No source'}
-  </div>
-  <div class="detection-item">
-    ${this.renderHalfChain(detection.fullChain)}
-  </div>
-  <div class="detection-item detection-content">
-    ${this.escapeHtml(detection.content) || 'No content'}
-  </div>
-</div>
-`;
-  }
+
 
 
 showDetectionDetails(detection) {
@@ -315,6 +319,7 @@ showDetectionDetails(detection) {
     `;
   }
 
+
   content.innerHTML = `
     <h2>${this.escapeHtml(detection.type)}</h2>
     <p><strong>Time:</strong> ${this.formatDateTime(detection.timestamp)}</p>
@@ -322,6 +327,10 @@ showDetectionDetails(detection) {
     <div class="content-section">
       <p><strong>Content:</strong></p>
       <pre>${this.escapeHtml(detection.content || 'No content')}</pre>
+    </div>
+    <div class="content-section">
+      <p><strong>Status:</strong></p>
+      <pre>${this.escapeHtml(detection.analysis || 'No content')}</pre>
     </div>
     ${fullChainHTML}
     ${detection.screenshot ? `

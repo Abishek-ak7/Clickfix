@@ -209,6 +209,7 @@ async function monitorClipboard(text) {
         content: domain,
         description: `Detected homoglyphs: ${homoglyphsFound.map(h => `${h.char}→${h.replacement}`).join(', ')}`,
         url: window.location.href,
+        screenshot:img,
         src: sourceUrl,
         dest: destinationUrl,
         fullChain,
@@ -281,6 +282,7 @@ function handleDeobfuscationResult(original, result) {
     source: original,
     content: result.deobfuscated,
     mappings: result.mappings,
+    screenshot:img,
     description:result,
     src:sourceUrl,
     dest:destinationUrl,
@@ -507,6 +509,7 @@ function startScriptMonitoring() {
         source: 'Inline script',
         content: callback.toString().substring(0, PARTIAL_CONTENT_LENGTH),
          src:sourceUrl,
+         screenshot:img,
     dest:destinationUrl,
     fullChain,
         url: window.location.href,
@@ -593,6 +596,7 @@ return originalAPIs.writeText.call(navigator.clipboard, '[Blocked malicious clip
           source: 'Inline script',
           content: `Attempt to copy: ${text.match(maliciousMatch.pattern)?.[0,100] || 'Pattern matched'}`,
           url: window.location.href,
+          screenshot:img,
            src:sourceUrl,
     dest:destinationUrl,
        fullChain,
@@ -734,6 +738,7 @@ function checkScriptContent(content, source) {
       const scriptContext = {
         content,
         url: source || window.location.href,
+        screenshot:img,
         timestamp: new Date().toISOString()
       };
       sendToDeobfuscationService(scriptContext)
@@ -753,6 +758,7 @@ function checkScriptContent(content, source) {
       const scriptContext = {
         content,
         url: source || window.location.href,
+        screenshot:img,
         timestamp: new Date().toISOString()
       };
       sendToDeobfuscationService(scriptContext)

@@ -263,7 +263,7 @@
     }
 
     .detection-source {
-      font-size: 1.2em;
+      font-size: 0.9em;
       color: var(--text-muted);
       text-align: center;
       align-items: center;
@@ -450,6 +450,7 @@
       border-color: var(--secondary-color);
     }
 
+
     .theme-toggle {
       position: relative;
       width: 50px;
@@ -561,7 +562,7 @@
       }
 
       .filter-row {
-        flex-direction: column;
+        flex-direction: row;
         align-items: stretch;
       }
 
@@ -693,7 +694,21 @@
     </div>
   </div>
 
-  <div id="history-container"></div>
+
+<div class="detection-table">
+  <div class="detection-row header">
+    <div>Type</div>
+    <div>Time</div>
+    <div>Screenshot</div>
+    <div>Initial Url</div>
+    <div>Contents</div>
+    <div>Actions</div>
+  </div>
+
+  <!-- Your detection rows will go here -->
+  <div class="detection-row header"  id="history-container"></div>
+</div>
+
 
   <div class="pagination" id="pagination"></div>
 
