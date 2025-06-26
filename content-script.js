@@ -71,6 +71,19 @@ const maliciousPatterns = [
 }
 ,
 ];
+const homoglyphMap = {
+  'а': 'a', // Cyrillic a
+  'е': 'e', // Cyrillic e
+  'і': 'i', // Cyrillic i
+  'ο': 'o', // Greek omicron
+  'р': 'p', // Cyrillic p
+  'ѕ': 's', // Cyrillic s
+  'ѵ': 'v', // Cyrillic v
+  'ꞵ': 'b', // Latin beta
+  'ʟ': 'l', // Latin small capital L
+  'ⅰ': 'i', // Roman numeral one
+};
+
 
 
 
@@ -87,6 +100,31 @@ const heuristicWeights = {
   "IEX Found": 0.4,
   "IWR Found": 0.4
 };
+
+
+function extractDomainAndCheckHomoglyphs(text) {
+  const urlPattern = /https?:\/\/([^\s/]+)/gi;
+  let match;
+  const suspiciousDomains = [];
+
+  while ((match = urlPattern.exec(text)) !== null) {
+    const domain = match[1];
+    const homoglyphsFound = [];
+
+    for (const char of domain) {
+      if (homoglyphMap[char]) {
+        homoglyphsFound.push({ char, replacement: homoglyphMap[char] });
+      }
+    }
+
+    if (homoglyphsFound.length > 0) {
+      suspiciousDomains.push({ domain, homoglyphsFound });
+    }
+  }
+
+  return suspiciousDomains;
+}
+
 
 
 
@@ -119,7 +157,11 @@ return (
 
 document.addEventListener("click", () => {
   console.log("Click detected, sending readClipboard request to background");
-  chrome.runtime.sendMessage({ action: "readClipboard" });
+  setTimeout(()=>{
+ chrome.runtime.sendMessage({ action: "readClipboard" });
+ console.log("Readclipboard request sent to the background.")
+  },2500);
+ 
 });
 
 let model_output = 0;
@@ -144,30 +186,41 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   }
 });
 
-
-
 //It is used to regularly monitor the Clipboard for any suspicious contents found.
 
-
  let lastClipboardContent = '';
-async function monitorClipboard( text) {
- 
+async function monitorClipboard(text) {
+  if (text === lastClipboardContent) return;
+  lastClipboardContent = text;
 
+  const normalized = text.replace(/\s+/g, ' ').replace(/[\n\r\t]/g, ' ').trim();
 
-    // Skip if same as last checked
-    if (text === lastClipboardContent) return;
-    lastClipboardContent = text;
+  const matched = maliciousPatterns.some(({ pattern }) => pattern.test(normalized));
+  const suspiciousDomains = extractDomainAndCheckHomoglyphs(normalized);
 
-    // Normalize clipboard content
-    const normalized = text.replace(/\s+/g, ' ').replace(/[\n\r\t]/g, ' ').trim();
-    const matched = maliciousPatterns.some(({ pattern }) => pattern.test(normalized));
-    if (matched) {
-      checkScriptContent(normalized, 'clipboard');
-      clearClipboard();
-}    
+  if (matched || suspiciousDomains.length > 0) {
+    checkScriptContent(normalized, 'clipboard');
+    clearClipboard();
+
+    suspiciousDomains.forEach(({ domain, homoglyphsFound }) => {
+      const detection = {
+        type: 'Homoglyph Domain',
+        source: 'clipboard',
+        content: domain,
+        description: `Detected homoglyphs: ${homoglyphsFound.map(h => `${h.char}→${h.replacement}`).join(', ')}`,
+        url: window.location.href,
+        src: sourceUrl,
+        dest: destinationUrl,
+        fullChain,
+        timestamp: new Date().toISOString()
+      };
+      addToDetectionHistory(detection);
+      if (canAlert(`homoglyph-${domain}`)) {
+        showSecurityAlert(`Suspicious domain detected: ${domain}`, window.location.href);
+      }
+    });
+  }
 }
-
-
 //Here this function will be used to check whether the content is encoded and then it match with the pattern 
 function tryBase64DecodeAndAnalyze(content, source) {
   const base64Pattern = /atob\s*\(\s*[A-Za-z0-9+/=]{20,}['"`]\s*\)/gi;
@@ -203,7 +256,7 @@ async function sendToDeobfuscationService(scriptContext) {
   if (deobfuscationQueue.has(scriptContext.url)) return;
   deobfuscationQueue.add(scriptContext.url);
   try {
-    const response = await fetch('http://localhost:3000/deobfuscate', {
+    const response = await fetch('https://deobfuscator-xcby.onrender.com/deobfuscate', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ code: scriptContext.content }),
