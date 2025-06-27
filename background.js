@@ -61,6 +61,22 @@ chrome.webNavigation.onCommitted.addListener((details) => {
   const isManual = transitionType === 'typed' || transitionQualifiers.includes('from_address_bar');
   const isRedirect = transitionQualifiers.includes('client_redirect') || transitionQualifiers.includes('server_redirect');
 
+  // Helper function to extract domain from URL
+  function getDomain(url) {
+    try {
+      return new URL(url).hostname;
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Helper function to check if redirect is cross-domain
+  function isCrossDomainRedirect(fromUrl, toUrl) {
+    const fromDomain = getDomain(fromUrl);
+    const toDomain = getDomain(toUrl);
+    return fromDomain && toDomain && fromDomain !== toDomain;
+  }
+
   if (isManual) {
     // Start a new chain
     tabRedirectChains.set(tabId, [url]);
@@ -71,12 +87,91 @@ chrome.webNavigation.onCommitted.addListener((details) => {
     const lastUrl = chain[chain.length - 1];
 
     if (lastUrl !== url) {
+      // Check if this is a cross-domain redirect
+      const isCrossDomain = lastUrl && isCrossDomainRedirect(lastUrl, url);
+      
       chain.push(url);
       tabRedirectChains.set(tabId, chain);
-      console.log('Chain updated with auto-redirect or link:', chain);
+      
+      if (isCrossDomain) {
+        console.log('Cross-domain redirect detected:', {
+          from: getDomain(lastUrl),
+          to: getDomain(url),
+          fullChain: chain
+        });
+        
+        // You can add specific handling for cross-domain redirects here
+        handleCrossDomainRedirect(tabId, lastUrl, url, chain);
+      } else {
+        console.log('Same-domain redirect or navigation:', chain);
+      }
     }
   }
 });
+
+// Optional: Separate handler for cross-domain redirects
+function handleCrossDomainRedirect(tabId, fromUrl, toUrl, fullChain) {
+  const fromDomain = new URL(fromUrl).hostname;
+  const toDomain = new URL(toUrl).hostname;
+  
+  console.log(`Cross-domain redirect: ${fromDomain} → ${toDomain}`);
+  
+  // Store cross-domain redirect data
+  if (!crossDomainRedirects.has(tabId)) {
+    crossDomainRedirects.set(tabId, []);
+  }
+  
+  crossDomainRedirects.get(tabId).push({
+    fromDomain,
+    toDomain,
+    fromUrl,
+    toUrl,
+    timestamp: Date.now(),
+    chainLength: fullChain.length
+  });
+  
+  // Optional: Trigger specific actions for cross-domain redirects
+  // - Analytics tracking
+  // - Security checks
+  // - User notifications
+  // - etc.
+}
+
+// Initialize storage for cross-domain redirect tracking
+const crossDomainRedirects = new Map();
+
+// Optional: Function to get cross-domain redirect history for a tab
+function getCrossDomainRedirects(tabId) {
+  return crossDomainRedirects.get(tabId) || [];
+}
+
+// Optional: Function to detect potential redirect chains (tracking pixels, etc.)
+function analyzeRedirectChain(tabId) {
+  const chain = tabRedirectChains.get(tabId) || [];
+  const crossDomainData = crossDomainRedirects.get(tabId) || [];
+  
+  if (chain.length > 3) {
+    console.log('Long redirect chain detected:', {
+      length: chain.length,
+      crossDomainCount: crossDomainData.length,
+      domains: chain.map(url => getDomain(url))
+    });
+  }
+}
+
+// Clean up when tab is closed
+chrome.tabs.onRemoved.addListener((tabId) => {
+  tabRedirectChains.delete(tabId);
+  crossDomainRedirects.delete(tabId);
+});
+
+function getDomain(url) {
+  try {
+    return new URL(url).hostname;
+  } catch (e) {
+    return null;
+  }
+}
 
 
 
