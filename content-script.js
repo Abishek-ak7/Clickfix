@@ -178,8 +178,7 @@ chrome.runtime.onMessage.addListener((msg, sender, sendResponse) => {
   if(msg.type === 'model_result'){
     console.log("Received model output:",msg.decision);
     const rece = msg.decision;
-    const confidence = parseFloat(rece.final_confidence);
-    model_output = confidence/100;
+    model_output = rece.confidence;
     console.log("The output is:", model_output);
 
     evaluateFinalAlert();

@@ -1,7 +1,7 @@
-const ALERT_COOLDOWN = 5 * 60 * 1000; // 5 minutes
-const DETECTION_HISTORY_LIMIT = 1000;
-const alertedUrls = new Map();
-let detectionHistory = [];
+const ALERT_COOLDOWN = 5 * 60 * 1000; //5 minutes to be used for the cooldown for the alert.
+const DETECTION_HISTORY_LIMIT = 1000; // In the chrome detection history there 1000 detection can be stored.
+const alertedUrls = new Map(); // To prevent from the duplicate alerts
+let detectionHistory = []; // Used to store the detection history
 
 // Load saved history from storage
 chrome.storage.local.get(['detectionHistory'], (result) => {
@@ -196,10 +196,10 @@ const window = await chrome.windows.getCurrent({ populate: true });
     const blob = await (await fetch(imageUri)).blob();
 
     const formData = new FormData();
-    formData.append('file', blob, 'screenshot.png');
+    formData.append('image', blob, 'screenshot.png');
     formData.append('url', tab.url);
 
-    const response = await fetch('http://20.106.187.204:8080/predict', {
+    const response = await fetch('http://20.119.83.97:8080/predict', {
       method: 'POST',
       body: formData
     });
@@ -241,9 +241,6 @@ const window = await chrome.windows.getCurrent({ populate: true });
     });
   }
 }
-
-
-
 // Listen for messages from content script and popup
 chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   if (request.type === 'capture_screenshot') {
@@ -323,8 +320,6 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
   chrome.storage.local.set({ detectionHistory: [], historyCleared: true }, () => {
     sendResponse({ success: true });
   });
- 
-
 
 }
  return true;
@@ -371,33 +366,9 @@ function addToDetectionHistory(detection) {
 }
 
 
-
+// To load the history in the webpage
 function showHistoryPage() {
   chrome.tabs.create({
     url: chrome.runtime.getURL('history.html')
   });
-}
-
-// Clear clipboard function
-async function clearClipboard() {
-  const [tab] = await chrome.tabs.query({ active: true, currentWindow: true });
-  
-  chrome.scripting.executeScript({
-    target: { tabId: tab.id },
-    function: () => {
-      try {
-        navigator.clipboard.writeText('').catch(() => {});
-        // Fallback for older browsers
-        const textArea = document.createElement("textarea");
-        textArea.value = '';
-        document.body.appendChild(textArea);
-        textArea.select();
-        document.execCommand('copy');
-        document.body.removeChild(textArea);
-      } catch (e) {
-        console.log('Could not clear clipboard:', e);
-      }
-    }
-  });
-  
 }
