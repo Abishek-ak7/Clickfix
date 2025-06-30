@@ -646,6 +646,8 @@ function evaluateFinalAlert() {
 let heuristicScore = 0;
 
   //It is the main function which will be triggered whenever the content is extracted the function for the pattern matching.
+let pendingDetection = null;
+
 function checkScriptContent(content, source) {
   if (!content || content.length < 20 || content.includes('<![CDATA[') || isWhitelisted(content)) return;
 
@@ -670,7 +672,6 @@ function checkScriptContent(content, source) {
   let shouldDeobfuscate = false;
   const matchedPatterns = [];
 
-  // Collect all matching patterns first
   maliciousPatterns.forEach(({ type, pattern, description }) => {
     const matches = normalized.match(new RegExp(pattern, 'gi'));
     if (matches && canAlert(`pattern:${pattern.source}`)) {
@@ -680,96 +681,93 @@ function checkScriptContent(content, source) {
 
   if (matchedPatterns.length === 0) return;
 
-  // Capture screenshot once after confirming matches
-  chrome.runtime.sendMessage({ type: 'capture_screenshot' }, (response) => {
-    const img = response?.imageUri || null;
-
-    matchedPatterns.forEach(({ type, description, matches }) => {
-      heuristicScore+=heuristicWeights[type] || 0.1;
-      matches.forEach(() => {
-        const detection = {
-          type: type || 'Malicious things Found',
-          source: source || 'DOM',
-          content,
-          description,
-          url: window.location.href,
-          screenshot: img,
-          src: sourceUrl,
-          dest: destinationUrl,
-          fullChain,
-          timestamp: new Date().toISOString()
-        };
-        addToDetectionHistory(detection);
-        // showSecurityAlert(`We found the ${type}`, source || window.location.href);
-
-        if (description.toLowerCase().includes('powershell')) {
-          const psMatch = content.match(powershellCommandPattern);
-          if (psMatch && psMatch[1]) {
-            try {
-              const decoded = atob(psMatch[1].replace(/\+/g, '+'));
-              const decodedDetection = {
-                type: 'Decoded PowerShell Command',
-                source: source || 'DOM',
-                content: decoded,
-                description: 'Decoded PowerShell command from encoded input',
-                url: window.location.href,
-                screenshot: img,
-                src: sourceUrl,
-                dest: destinationUrl,
-                   fullChain,
-                timestamp: new Date().toISOString()
-              };
-              addToDetectionHistory(decodedDetection);
-              // showSecurityAlert(`⚠️ PowerShell command detected:\n${decoded}`, source || window.location.href);
-            } catch (e) {
-              console.warn('Failed to decode PowerShell command:', e);
-            }
-          }
-        }
-
-        if (type === "Hexadecimal_Code") {
-          shouldDeobfuscate = true;
-        }
-      });
-    });
-
-    if (shouldDeobfuscate) {
-      const scriptContext = {
-        content,
-        url: source || window.location.href,
-        screenshot:img,
-        timestamp: new Date().toISOString()
-      };
-      sendToDeobfuscationService(scriptContext)
-        .then(result => {
-          if (result?.success) {
-            handleDeobfuscationResult(scriptContext, result);
-          }
-        })
-        .catch(() => {});
-    }
-  });
+  // Store detection for deferred screenshot and alert
+  pendingDetection = {
+    content,
+    source,
+    matchedPatterns,
+    timestamp: new Date().toISOString(),
+    shouldDeobfuscate,
+    powershellCommandPattern
+  };
 
   tryBase64DecodeAndAnalyze(content, source);
+}
 
+document.addEventListener("click", () => {
+  if (!pendingDetection) return;
 
-    if (shouldDeobfuscate) {
-      const scriptContext = {
-        content,
-        url: source || window.location.href,
-        screenshot:img,
-        timestamp: new Date().toISOString()
-      };
-      sendToDeobfuscationService(scriptContext)
-        .then(result => {
-          if (result?.success) {
-            handleDeobfuscationResult(scriptContext, result);
+  setTimeout(() => {
+    chrome.runtime.sendMessage({ type: 'capture_screenshot' }, (response) => {
+      const img = response?.imageUri || null;
+
+      pendingDetection.matchedPatterns.forEach(({ type, description, matches }) => {
+        heuristicScore += heuristicWeights[type] || 0.1;
+
+        matches.forEach(() => {
+          const detection = {
+            type: type || 'Malicious things Found',
+            source: pendingDetection.source || 'DOM',
+            content: pendingDetection.content,
+            description,
+            url: window.location.href,
+            screenshot: img,
+            src: sourceUrl,
+            dest: destinationUrl,
+            fullChain,
+            timestamp: pendingDetection.timestamp
+          };
+          addToDetectionHistory(detection);
+
+          if (description.toLowerCase().includes('powershell')) {
+            const psMatch = pendingDetection.content.match(pendingDetection.powershellCommandPattern);
+            if (psMatch && psMatch[1]) {
+              try {
+                const decoded = atob(psMatch[1].replace(/\+/g, '+'));
+                const decodedDetection = {
+                  type: 'Decoded PowerShell Command',
+                  source: pendingDetection.source || 'DOM',
+                  content: decoded,
+                  description: 'Decoded PowerShell command from encoded input',
+                  url: window.location.href,
+                  screenshot: img,
+                  src: sourceUrl,
+                  dest: destinationUrl,
+                  fullChain,
+                  timestamp: new Date().toISOString()
+                };
+                addToDetectionHistory(decodedDetection);
+              } catch (e) {
+                console.warn('Failed to decode PowerShell command:', e);
+              }
+            }
           }
-        })
-        .catch(() => {});
-    }
-  }
 
+          if (type === "Hexadecimal_Code") {
+            pendingDetection.shouldDeobfuscate = true;
+          }
+        });
+      });
 
+      if (pendingDetection.shouldDeobfuscate) {
+        const scriptContext = {
+          content: pendingDetection.content,
+          url: pendingDetection.source || window.location.href,
+          screenshot: img,
+          timestamp: new Date().toISOString()
+        };
+        sendToDeobfuscationService(scriptContext)
+          .then(result => {
+            if (result?.success) {
+              handleDeobfuscationResult(scriptContext, result);
+            }
+          })
+          .catch(() => {});
+      }
+
+      pendingDetection = null;
+    });
+  }, 2000); // 5-second delay
+});
 
 })();
