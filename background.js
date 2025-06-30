@@ -199,7 +199,7 @@ const window = await chrome.windows.getCurrent({ populate: true });
     formData.append('image', blob, 'screenshot.png');
     formData.append('url', tab.url);
 
-    const response = await fetch('http://20.119.83.97:8080/predict', {
+    const response = await fetch('https://sushantvijay.me/predict', {
       method: 'POST',
       body: formData
     });
