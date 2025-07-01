@@ -276,19 +276,20 @@ function handleDeobfuscationResult(original, result) {
 
 
   // Create detection record
-  const detection = {
-    type: 'Deobfuscated Script',
-    source: original,
-    content: result.deobfuscated,
-    mappings: result.mappings,
-    screenshot:img,
-    description:result,
-    src:sourceUrl,
-    dest:destinationUrl,
-       fullChain,
-    timestamp: new Date().toISOString(),
-    analysis: result.analysis || 'Deobfuscation completed'
-  };
+const detection = {
+  type: 'Deobfuscated Script',
+  source: original.url,
+  content: result.deobfuscated,
+  mappings: result.mappings,
+  screenshot: original.screenshot,
+  description: result,
+  src: original.src || sourceUrl,
+  dest: original.dest || destinationUrl,
+  fullChain: original.fullChain || fullChain,
+  timestamp: new Date().toISOString(),
+  analysis: result.analysis || 'Deobfuscation completed'
+};
+
 
   addToDetectionHistory(detection);
 
@@ -649,6 +650,7 @@ let heuristicScore = 0;
 let pendingDetection = null;
 
 function checkScriptContent(content, source) {
+  let shouldDeobfuscate = false;
   if (!content || content.length < 20 || content.includes('<![CDATA[') || isWhitelisted(content)) return;
 
   const lower = content.toLowerCase();
@@ -662,14 +664,13 @@ function checkScriptContent(content, source) {
     lower.includes('atob(')
   ) {
     if (isLikelySafeUsage(content)) {
-      console.debug('[Safe Usage] Skipped alert for trusted command:', content);
-      return;
+      shouldDeobfuscate = true;
     }
   }
 
   const powershellCommandPattern = /powershell(?:\.exe)?\s*[-\/][Ee]ncode[d]?[Cc]ommand\s+([A-Za-z0-9+/=\\-]+)/i;
   const normalized = content.replace(/\s+/g, ' ').replace(/[\n\r\t]/g, ' ').toLowerCase();
-  let shouldDeobfuscate = false;
+  
   const matchedPatterns = [];
 
   maliciousPatterns.forEach(({ type, pattern, description }) => {
@@ -751,11 +752,15 @@ document.addEventListener("click", () => {
 
       if (pendingDetection.shouldDeobfuscate) {
         const scriptContext = {
-          content: pendingDetection.content,
-          url: pendingDetection.source || window.location.href,
-          screenshot: img,
-          timestamp: new Date().toISOString()
-        };
+        content: pendingDetection.content,
+        url: `${pendingDetection.source || window.location.href}#${hashString(pendingDetection.content)}`,
+        screenshot: img,
+        src: sourceUrl,
+        dest: destinationUrl,
+        fullChain,
+        timestamp: new Date().toISOString()
+          };
+
         sendToDeobfuscationService(scriptContext)
           .then(result => {
             if (result?.success) {

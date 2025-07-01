@@ -290,6 +290,9 @@ renderDetection(detection) {
   `;
 }
 
+
+
+
 showDetectionDetails(detection) {
   const modal = document.getElementById('detectionModal');
   const content = document.getElementById('detectionDetails');
