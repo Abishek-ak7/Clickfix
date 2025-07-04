@@ -5,7 +5,6 @@
   const detectionHistory = [];
   const deobfuscationQueue = new Set();
 
-
 //Patterns to be used to match with the commands in the Source Code
 const maliciousPatterns = [
   {
@@ -84,9 +83,6 @@ const homoglyphMap = {
   'ⅰ': 'i', // Roman numeral one
 };
 
-
-
-
 const heuristicWeights = {
   "Powershell Command": 0.3,
   "Silent Powershell Command": 0.4,
@@ -100,7 +96,6 @@ const heuristicWeights = {
   "IEX Found": 0.4,
   "IWR Found": 0.4
 };
-
 
 function extractDomainAndCheckHomoglyphs(text) {
   const urlPattern = /https?:\/\/([^\s/]+)/gi;
@@ -125,13 +120,9 @@ function extractDomainAndCheckHomoglyphs(text) {
   return suspiciousDomains;
 }
 
-
-
-
 //It is used to verify the Heuristic Evaluation of the IWR, IEX, Mhta 
 function isLikelySafeUsage(content) {
   const normalized = content.toLowerCase();
-
 
   const hasIwr = normalized.includes('iwr')
   const isIwrDownloadOnly = /iwr\s+https?:\/\/[^\s]+.*-outfile\s+/i.test(normalized);
@@ -156,12 +147,13 @@ return (
 }
 
 document.addEventListener("click", () => {
+  if(PageFlagged){
   console.log("Click detected, sending readClipboard request to background");
   setTimeout(()=>{
  chrome.runtime.sendMessage({ action: "readClipboard" });
  console.log("Readclipboard request sent to the background.")
   },2500);
- 
+}
 });
 
 let model_output = 0;
@@ -273,8 +265,6 @@ async function sendToDeobfuscationService(scriptContext) {
 //It will be used to handle the result which is received from the backend.
 function handleDeobfuscationResult(original, result) {
   if (!result?.success) return;
-
-
   // Create detection record
 const detection = {
   type: 'Deobfuscated Script',
@@ -292,7 +282,6 @@ const detection = {
 
 
   addToDetectionHistory(detection);
-
   
   checkScriptContent(result.deobfuscated, original.url);
 
@@ -649,6 +638,9 @@ let heuristicScore = 0;
   //It is the main function which will be triggered whenever the content is extracted the function for the pattern matching.
 let pendingDetection = null;
 
+let PageFlagged = false;
+
+
 function checkScriptContent(content, source) {
   let shouldDeobfuscate = false;
   if (!content || content.length < 20 || content.includes('<![CDATA[') || isWhitelisted(content)) return;
@@ -682,6 +674,7 @@ function checkScriptContent(content, source) {
 
   if (matchedPatterns.length === 0) return;
 
+  PageFlagged = true;
   // Store detection for deferred screenshot and alert
   pendingDetection = {
     content,

@@ -173,50 +173,6 @@ function getDomain(url) {
   }
 }
 
-let nativePort = null;
-
-function connectToNativeApp() {
-  console.log("[*] Attempting to connect to native app...");
-
-  try {
-    nativePort = chrome.runtime.connectNative("com.clipboard.guard");
-
-    nativePort.onMessage.addListener((message) => {
-      if (message.alert === "Suspicious registry write detected!") {
-        console.warn("[!] ALERT: Suspicious registry activity");
-        console.warn("Key:", message.key);
-        console.warn("Value:", message.value);
-
-        chrome.notifications.create({
-          type: "basic",
-          iconUrl: "icon.png",
-          title: "Security Alert",
-          message: `Registry key: ${message.key}\nValue: ${message.value}`,
-        });
-      }
-
-      if (message.response) {
-        console.log("[Response]", message.response, message.data || "");
-      }
-    });
-
-    nativePort.onDisconnect.addListener(() => {
-      const error = chrome.runtime.lastError;
-      console.error("[!] Native app disconnected.", error ? error.message : "");
-      nativePort = null;
-
-      // Optionally, try to reconnect after a delay
-      setTimeout(connectToNativeApp, 5000); // Retry after 5 seconds
-    });
-
-    console.log("[+] Native app connected.");
-  } catch (err) {
-    console.error("[!] Failed to connect to native app:", err);
-  }
-}
-
-// Connect when extension starts
-connectToNativeApp();
 
 async function captureAndSendScreenshot(retryCount = 0) {
   try {
